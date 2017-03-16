@@ -1,69 +1,149 @@
 // dependencies
 import React from 'react';
 import * as firebase from 'firebase';
+// import firebaseApp from './firebase/config';
+import firebaseApp from './firebase';
+
+const provider = new firebase.auth.FacebookAuthProvider();
+
 
 class App extends React.Component {
   constructor() {
     super();
 
     this.databaseRef = null;
-    this.state = { value: '' };
+    this.userID = null;
+    this.state = {
+      dbStorage: [],
+      value: '',
+      userData: {}
+    };
+  }
+
+  componentDidMount() {
+    firebaseApp.auth().onAuthStateChanged(user => {
+      if(user) {
+        this.userID = user.uid;
+        this.setState({
+          userData: {
+            name: user.displayName,
+            email: user.email,
+            photo: user.photoURL
+          }
+        })
+        this.loadDB();
+      } else {
+        console.log('not logged int');
+      }
+    });
+  }
+
+  loadDB() {
+    if(this.userID) {
+      const getData = (data) => {
+        console.log('this is from firebase DB ->', data.val());
+
+        this.setState({
+          dbStorage: data.val().dbValueTest
+        })
+      };
+
+      const dbError = (error) => {
+        console.warn('firebase DB Error ->', error);
+      };
+
+      this.databaseRef = firebaseApp.database().ref('users/' + this.userID);
+      this.databaseRef.on('value', getData, dbError);
+    }
   }
 
   FBlogIn(e) {
     e.preventDefault();
 
-    const provider = new firebase.auth.FacebookAuthProvider();
-
-    firebase.auth().signInWithPopup(provider).then((result) => {
+    firebaseApp.auth().signInWithPopup(provider).then((result) => {
       const token = result.credential.accessToken;
       const user = result.user;
-      const userId = user.uid;
+      this.userID = user.uid;
 
-      this.databaseRef = firebase.database().ref('users/' + userId);
-      this.databaseRef.on('value', gotData, gotError);
+      this.loadDB();
 
-      function gotData(data) {
-        console.log('got data');
-        console.log(data.val());
-      }
-      function gotError(data) {
-        console.log(data);
-      }
+      this.setState({
+        userData: {
+          name: user.displayName,
+          email: user.email,
+          photo: user.photoURL
+        }
+      });
 
-    }).catch(function(error) {
+    }).catch((error) => {
       const errorMessage = error.message;
       const credential = error.credential;
-      console.log('errorMessage', errorMessage);
+      console.log('Login Error ->', errorMessage);
     });
 
   }
 
   FBlogOut(e) {
     e.preventDefault();
-    firebase.auth().signOut().then(function() {
-      console.log('logged out!');
-    }).catch(function(error) {
-      console.log(error);
+    firebaseApp.auth().signOut().then(() => {
+      this.setState({
+        userData: {}
+      });
+      this.userID = null;
+      console.log('You have just logged out!');
+    }).catch((error) => {
+      console.log('Logout error ->', error);
     });
   }
 
-  submit(e) {
+  saveInDB(e) {
     e.preventDefault();
-    const userId = firebase.auth().currentUser.uid;
 
-    firebase.database().ref('users/' + userId).set({
-      ciaoneone: this.state.value
+    this.setState({
+      dbStorage: [this.state.value].concat(this.state.dbStorage),
+      value: ''
+    }, () => {
+      console.log(this.userID);
+      firebaseApp.database().ref('users/' + this.userID).set({
+        dbValueTest: this.state.dbStorage
+      });
     });
   }
 
   render() {
     return (
-      <form onSubmit={(e) => this.submit(e)}>
-        <a href='#' onClick={e => this.FBlogIn(e)}>fb login</a><br />
-        <a href='#' onClick={e => this.FBlogOut(e)}>fb logout</a><br />
-        <input type='text' value={this.state.value} onChange={e => this.setState({value: e.target.value})} />
-      </form>
+      <div>
+      {Object.keys(this.state.userData).length !== 0 &&
+        <section>
+          <h2>User Info</h2>
+          <img src={this.state.userData.photo} /><br />
+          <span>Name: {this.state.userData.name}</span><br />
+          <span>Email: {this.state.userData.email}</span>
+          <br /><br />
+        </section>
+      }
+
+        <form onSubmit={(e) => this.saveInDB(e)}>
+          <a href='#' onClick={e => this.FBlogIn(e)}>fb login</a><br />
+          <a href='#' onClick={e => this.FBlogOut(e)}>fb logout</a><br /><br />
+
+          <label>type & press enter to save in DB</label><br />
+          <input type='text' value={this.state.value} onChange={e => this.setState({value: e.target.value})} />
+        </form>
+
+        {this.state.dbStorage &&
+          <div>
+            <h3>From DB</h3>
+            {this.state.dbStorage.map((e, i) => {
+              return (<p key={i}>{e}</p>)
+            })}
+          </div>
+        }
+
+        {this.state.dbStorage.length === 0 &&
+          <span>you must login</span>
+        }
+      </div>
     )
   }
 }

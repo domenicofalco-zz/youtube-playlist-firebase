@@ -9536,6 +9536,7 @@ module.exports = ReactPropTypesSecret;
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_react___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_react__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_firebase__ = __webpack_require__(58);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_firebase___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_firebase__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__firebase__ = __webpack_require__(84);
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -9547,6 +9548,10 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 // dependencies
 
 
+// import firebaseApp from './firebase/config';
+
+
+var provider = new __WEBPACK_IMPORTED_MODULE_1_firebase__["auth"].FacebookAuthProvider();
 
 var App = function (_React$Component) {
   _inherits(App, _React$Component);
@@ -9557,89 +9562,205 @@ var App = function (_React$Component) {
     var _this = _possibleConstructorReturn(this, (App.__proto__ || Object.getPrototypeOf(App)).call(this));
 
     _this.databaseRef = null;
-    _this.state = { value: '' };
+    _this.userID = null;
+    _this.state = {
+      dbStorage: [],
+      value: '',
+      userData: {}
+    };
     return _this;
   }
 
   _createClass(App, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      var _this2 = this;
+
+      __WEBPACK_IMPORTED_MODULE_2__firebase__["a" /* default */].auth().onAuthStateChanged(function (user) {
+        if (user) {
+          _this2.userID = user.uid;
+          _this2.setState({
+            userData: {
+              name: user.displayName,
+              email: user.email,
+              photo: user.photoURL
+            }
+          });
+          _this2.loadDB();
+        } else {
+          console.log('not logged int');
+        }
+      });
+    }
+  }, {
+    key: 'loadDB',
+    value: function loadDB() {
+      var _this3 = this;
+
+      if (this.userID) {
+        var getData = function getData(data) {
+          console.log('this is from firebase DB ->', data.val());
+
+          _this3.setState({
+            dbStorage: data.val().dbValueTest
+          });
+        };
+
+        var dbError = function dbError(error) {
+          console.warn('firebase DB Error ->', error);
+        };
+
+        this.databaseRef = __WEBPACK_IMPORTED_MODULE_2__firebase__["a" /* default */].database().ref('users/' + this.userID);
+        this.databaseRef.on('value', getData, dbError);
+      }
+    }
+  }, {
     key: 'FBlogIn',
     value: function FBlogIn(e) {
-      var _this2 = this;
+      var _this4 = this;
 
       e.preventDefault();
 
-      var provider = new __WEBPACK_IMPORTED_MODULE_1_firebase__["auth"].FacebookAuthProvider();
-
-      __WEBPACK_IMPORTED_MODULE_1_firebase__["auth"]().signInWithPopup(provider).then(function (result) {
+      __WEBPACK_IMPORTED_MODULE_2__firebase__["a" /* default */].auth().signInWithPopup(provider).then(function (result) {
         var token = result.credential.accessToken;
         var user = result.user;
-        var userId = user.uid;
+        _this4.userID = user.uid;
 
-        _this2.databaseRef = __WEBPACK_IMPORTED_MODULE_1_firebase__["database"]().ref('users/' + userId);
-        _this2.databaseRef.on('value', gotData, gotError);
+        _this4.loadDB();
 
-        function gotData(data) {
-          console.log('got data');
-          console.log(data.val());
-        }
-        function gotError(data) {
-          console.log(data);
-        }
+        _this4.setState({
+          userData: {
+            name: user.displayName,
+            email: user.email,
+            photo: user.photoURL
+          }
+        });
       }).catch(function (error) {
         var errorMessage = error.message;
         var credential = error.credential;
-        console.log('errorMessage', errorMessage);
+        console.log('Login Error ->', errorMessage);
       });
     }
   }, {
     key: 'FBlogOut',
     value: function FBlogOut(e) {
+      var _this5 = this;
+
       e.preventDefault();
-      __WEBPACK_IMPORTED_MODULE_1_firebase__["auth"]().signOut().then(function () {
-        console.log('logged out!');
+      __WEBPACK_IMPORTED_MODULE_2__firebase__["a" /* default */].auth().signOut().then(function () {
+        _this5.setState({
+          userData: {}
+        });
+        _this5.userID = null;
+        console.log('You have just logged out!');
       }).catch(function (error) {
-        console.log(error);
+        console.log('Logout error ->', error);
       });
     }
   }, {
-    key: 'submit',
-    value: function submit(e) {
-      e.preventDefault();
-      var userId = __WEBPACK_IMPORTED_MODULE_1_firebase__["auth"]().currentUser.uid;
+    key: 'saveInDB',
+    value: function saveInDB(e) {
+      var _this6 = this;
 
-      __WEBPACK_IMPORTED_MODULE_1_firebase__["database"]().ref('users/' + userId).set({
-        ciaoneone: this.state.value
+      e.preventDefault();
+
+      this.setState({
+        dbStorage: [this.state.value].concat(this.state.dbStorage),
+        value: ''
+      }, function () {
+        console.log(_this6.userID);
+        __WEBPACK_IMPORTED_MODULE_2__firebase__["a" /* default */].database().ref('users/' + _this6.userID).set({
+          dbValueTest: _this6.state.dbStorage
+        });
       });
     }
   }, {
     key: 'render',
     value: function render() {
-      var _this3 = this;
+      var _this7 = this;
 
       return __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
-        'form',
-        { onSubmit: function onSubmit(e) {
-            return _this3.submit(e);
-          } },
-        __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
-          'a',
-          { href: '#', onClick: function onClick(e) {
-              return _this3.FBlogIn(e);
-            } },
-          'fb login'
+        'div',
+        null,
+        Object.keys(this.state.userData).length !== 0 && __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+          'section',
+          null,
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+            'h2',
+            null,
+            'User Info'
+          ),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('img', { src: this.state.userData.photo }),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+            'span',
+            null,
+            'Name: ',
+            this.state.userData.name
+          ),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+            'span',
+            null,
+            'Email: ',
+            this.state.userData.email
+          ),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null)
         ),
-        __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
         __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
-          'a',
-          { href: '#', onClick: function onClick(e) {
-              return _this3.FBlogOut(e);
+          'form',
+          { onSubmit: function onSubmit(e) {
+              return _this7.saveInDB(e);
             } },
-          'fb logout'
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+            'a',
+            { href: '#', onClick: function onClick(e) {
+                return _this7.FBlogIn(e);
+              } },
+            'fb login'
+          ),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+            'a',
+            { href: '#', onClick: function onClick(e) {
+                return _this7.FBlogOut(e);
+              } },
+            'fb logout'
+          ),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+            'label',
+            null,
+            'type & press enter to save in DB'
+          ),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('input', { type: 'text', value: this.state.value, onChange: function onChange(e) {
+              return _this7.setState({ value: e.target.value });
+            } })
         ),
-        __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('br', null),
-        __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement('input', { type: 'text', value: this.state.value, onChange: function onChange(e) {
-            return _this3.setState({ value: e.target.value });
-          } })
+        this.state.dbStorage && __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+          'div',
+          null,
+          __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+            'h3',
+            null,
+            'From DB'
+          ),
+          this.state.dbStorage.map(function (e, i) {
+            return __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+              'p',
+              { key: i },
+              e
+            );
+          })
+        ),
+        this.state.dbStorage.length === 0 && __WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(
+          'span',
+          null,
+          'you must login'
+        )
       );
     }
   }]);
@@ -22552,23 +22673,13 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_react___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_react__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_react_dom__ = __webpack_require__(85);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_react_dom___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_react_dom__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__firebase__ = __webpack_require__(84);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__app__ = __webpack_require__(83);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__app__ = __webpack_require__(83);
 
 
 
 
 
-
-__WEBPACK_IMPORTED_MODULE_2__firebase__["a" /* default */].auth().onAuthStateChanged(function (user) {
-  if (user) {
-    console.log('signed in');
-  } else {
-    console.log('not logged int');
-  }
-});
-
-__WEBPACK_IMPORTED_MODULE_1_react_dom___default.a.render(__WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_3__app__["a" /* default */], null), document.getElementById('YoutubePlaylist'));
+__WEBPACK_IMPORTED_MODULE_1_react_dom___default.a.render(__WEBPACK_IMPORTED_MODULE_0_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_2__app__["a" /* default */], null), document.getElementById('YoutubePlaylist'));
 
 /***/ })
 /******/ ]);
