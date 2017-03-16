@@ -1,6 +1,6 @@
 var connect = require('connect');
+var port = 3000;
 var serveStatic = require('serve-static');
-console.log(__dirname)
-connect().use(serveStatic(__dirname + '/public')).listen(3000, function(){
-  console.log('Server running on 3000...');
+connect().use(serveStatic(__dirname + '/public')).listen(port, function(){
+  console.log('Server running on: http://localhost:' + port + '/');
 });
