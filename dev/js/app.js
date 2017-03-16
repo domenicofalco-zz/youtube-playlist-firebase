@@ -15,7 +15,7 @@ class App extends React.Component {
 
     const provider = new firebase.auth.FacebookAuthProvider();
 
-    firebase.auth().signInWithPopup(provider).then(function(result) {
+    firebase.auth().signInWithPopup(provider).then((result) => {
       const token = result.credential.accessToken;
       const user = result.user;
       const userId = user.uid;
